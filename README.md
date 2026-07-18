@@ -170,3 +170,80 @@ integration pivot.
 ## Licence
 
 Released under the MIT License.
+
+## Automatic timestamp gateway architecture
+
+The interactive gateway makes the host, rather than the model, the timestamp
+authority:
+
+1. The host stamps each user message in UTC when it is received.
+2. The message is appended to the canonical JSONL conversation log.
+3. A fresh, ephemeral Codex thread receives the complete timestamped history as
+   untrusted conversation data.
+4. GPT-5.6 Sol selects the relevant earlier message and calls the deterministic
+   `calculate_elapsed_time` MCP tool when elapsed time matters.
+5. After a successful turn, the host stamps and appends the assistant response.
+6. The model uses the exact result while preserving natural conversational
+   wording.
+
+The JSONL log is append-only and is the canonical source of conversation order.
+Assistant output is not stored when a turn fails.
+
+## Run the timestamped chat on Windows
+
+From the project directory:
+
+```powershell
+.\.venv\Scripts\python.exe chat_gateway.py
+```
+
+Enter `/quit` or `/exit` to close the conversation cleanly. To inspect the CLI
+without starting Codex app-server:
+
+```powershell
+.\.venv\Scripts\python.exe chat_gateway.py --help
+```
+
+## Live gateway validation
+
+The live validation used Codex app-server with existing ChatGPT authentication;
+no OpenAI API key was used. A natural multi-turn conversation succeeded, and
+the model retrieved the correct earlier laundry and TV-show messages. It
+reported 12 minutes 6 seconds from the first message, then 12 minutes 34 seconds
+from the TV-show message. All 41 automated tests passed before this successful
+live test.
+
+## Gateway security exploration and scope decision
+
+Reviews identified that Codex app-server v0.144.5 inherits built-in
+capabilities. The project explored an isolated `CODEX_HOME` design, but repeated
+targeted reviews exposed credential, executable, environment, and path-isolation
+complexity. James removed that design because this is a trusted-local Build Week
+prototype, not a hostile multi-user security boundary.
+
+The simplified gateway retains read-only sandboxing, restrictive approval
+settings, approval-denial handlers, developer-instruction separation, and a
+canonical history supplied as untrusted conversation data. A current platform
+limitation remains: app-server v0.144.5 cannot technically remove every built-in
+shell or file capability per thread. A future production version should use a
+runtime or app-server release that supports an explicit tool allowlist.
+
+## Gateway project files
+
+- `timestamp_gateway.py` provides automatic UTC timestamping and the append-only
+  canonical JSONL log.
+- `chat_gateway.py` provides the interactive Codex app-server conversation
+  gateway.
+- `test_timestamp_gateway.py` and `test_chat_gateway.py` cover timestamp,
+  persistence, protocol, failure, and shutdown behavior.
+
+Private live logs matching `conversation*.jsonl` remain local through
+`.gitignore`.
+
+## Gateway collaboration
+
+James identified the timestamp-authority weakness and made the product,
+architecture, and scope decisions. Codex implemented, tested, debugged, and
+reviewed the code. ChatGPT provided architecture guidance and recommended
+returning to the simpler model after the isolation findings. James approved the
+final trusted-local direction.

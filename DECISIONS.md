@@ -1,0 +1,31 @@
+# Project Decision Log
+
+## July 17, 2026 — Problem selected
+
+**Decision maker:** James Lennox
+
+Build a lightweight tool that gives conversational AI accurate elapsed-time information.
+
+The project was inspired by AI systems incorrectly describing events from minutes ago as though they happened yesterday or during a much older conversation.
+
+## July 17, 2026 — Scope simplified
+
+**Decision maker:** James Lennox
+
+The LLM already has access to the conversation and can determine which earlier message the user means. The project will not build a separate message-retrieval or memory system.
+
+## July 17, 2026 — Core operation
+
+**Decision maker:** James Lennox
+
+Every message must have a trustworthy timestamp. When time matters, the LLM supplies the earlier timestamp and current timestamp to the tool. The tool returns the exact elapsed time.
+
+## July 17, 2026 — Conversational behaviour
+
+**Decision maker:** James Lennox
+
+Temporal calculations must remain internal. The LLM should use the result naturally without sounding like a timestamp database or changing its existing conversational style.
+
+## Codex collaboration
+
+Codex helped translate these product decisions into a technical plan and will assist with implementation, testing, documentation, and demonstration preparation.

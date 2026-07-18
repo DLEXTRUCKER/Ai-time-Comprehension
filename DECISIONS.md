@@ -29,3 +29,10 @@ Temporal calculations must remain internal. The LLM should use the result natura
 ## Codex collaboration
 
 Codex helped translate these product decisions into a technical plan and will assist with implementation, testing, documentation, and demonstration preparation.
+## July 17, 2026 — Integration method
+
+**Decision maker:** James Lennox
+
+Use direct OpenAI function calling instead of building a separate MCP server.
+
+This keeps the prototype small, reduces dependencies and development time, minimizes API usage, and directly demonstrates GPT-5.6 deciding when to call the elapsed-time calculator.

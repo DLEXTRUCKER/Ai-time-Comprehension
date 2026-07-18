@@ -17,5 +17,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install dependency
+        run: python -m pip install -r requirements.txt
+
       - name: Run tests
         run: python -m unittest -v
+
+      - name: Validate demonstration syntax
+        run: python -m py_compile demo.py

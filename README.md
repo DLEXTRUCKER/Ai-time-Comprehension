@@ -2,125 +2,102 @@
 
 [![Tests](https://github.com/DLEXTRUCKER/Ai-time-Comprehension/actions/workflows/tests.yml/badge.svg)](https://github.com/DLEXTRUCKER/Ai-time-Comprehension/actions/workflows/tests.yml)
 
-A lightweight temporal-context tool that helps large language models reason accurately about elapsed time without disrupting natural conversation.
+A small local MCP tool that gives Codex exact elapsed-time calculations without
+requiring paid API calls.
 
-## The problem
+The server exposes `calculate_elapsed_time`. It accepts an earlier and current
+timezone-aware ISO 8601 timestamp, delegates to the deterministic calculator,
+and returns:
 
-Conversational AI can access earlier messages but may not receive reliable timestamp information or accurately calculate elapsed time. This can cause errors such as describing something from minutes ago as though it happened yesterday.
-
-## The solution
-
-Every conversation message receives a trustworthy ISO 8601 timestamp. When elapsed time matters, GPT-5.6 calls a deterministic Python function with:
-
-- The relevant earlier timestamp.
-- The current message timestamp.
-
-The function returns the exact elapsed time. GPT-5.6 then uses that result naturally without exposing technical metadata to the user.
-
-## Example
-
-```text
-July 17 — User: I am going to do laundry and watch TV.
-
-Two days pass.
-
-July 19 — User: Remember when I said I was going to do laundry?
-I forgot to put it in the dryer.
+```json
+{
+  "total_seconds": 173100,
+  "days": 2,
+  "hours": 0,
+  "minutes": 5,
+  "seconds": 0
+}
 ```
 
-The model calculates that two days passed and can naturally recommend washing the damp laundry again.
+Timestamps must include a UTC offset (such as `-06:00`) or end in `Z`.
 
-## How it works
+## Windows installation
 
-1. The application timestamps every message.
-2. GPT-5.6 recognizes when elapsed time matters.
-3. GPT-5.6 selects the relevant earlier timestamp.
-4. It calls `calculate_elapsed_time`.
-5. The Python function returns days, hours, minutes and seconds.
-6. GPT-5.6 incorporates the result into its normal response.
+Python 3.12 or newer is recommended. In PowerShell, from the project directory:
+
+```powershell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m unittest -v
+```
+
+If PowerShell blocks activation, use the environment's Python directly:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m unittest -v
+```
+
+## Configure Codex
+
+Add this stdio server to `%USERPROFILE%\.codex\config.toml`. Replace both paths
+with absolute paths to your checkout:
+
+```toml
+[mcp_servers.ai_time_comprehension]
+command = "C:\\path\\to\\Ai-time-Comprehension\\.venv\\Scripts\\python.exe"
+args = ["C:\\path\\to\\Ai-time-Comprehension\\mcp_server.py"]
+```
+
+Restart Codex after saving the configuration. Codex launches this stdio server;
+it does not need to run in a separate terminal.
+
+## Demo
+
+Start a new Codex conversation and ask:
+
+```text
+Use calculate_elapsed_time to find the elapsed time from
+2026-07-17T16:00:00-06:00 to 2026-07-19T16:05:00-06:00.
+```
+
+Codex should call the local tool and report 2 days and 5 minutes. No
+`OPENAI_API_KEY` is needed for this MCP demo.
+
+For protocol-level inspection, the MCP SDK's optional CLI can run the server:
+
+```powershell
+.\.venv\Scripts\mcp.exe dev mcp_server.py
+```
 
 ## Project files
 
 - `time_calculator.py` — deterministic timestamp calculation.
-- `tool_adapter.py` — OpenAI function definition and dispatcher.
-- `demo.py` — fixed GPT-5.6 demonstration conversation.
-- `test_time_calculator.py` — calculator tests.
-- `test_tool_adapter.py` — tool-adapter tests.
-- `DECISIONS.md` — project decisions and ownership record.
+- `mcp_server.py` — primary local Codex MCP integration.
+- `test_mcp_server.py` — focused MCP wrapper tests.
+- `tool_adapter.py` and `demo.py` — previous Responses API prototype, retained
+  temporarily.
+- `DECISIONS.md` — product decision and ownership record.
 
-## Running the tests
-
-```bash
-python -m unittest -v
-```
-
-The test suite covers:
-
-- Minute and multi-day intervals.
-- Crossing midnight.
-- Different timezone offsets.
-- Daylight-saving fallback.
-- Missing timezone information.
-- Reversed timestamps.
-- Strict tool arguments.
-- Tool dispatching.
-
-## Running the GPT-5.6 demonstration
-
-Requirements:
-
-- Python 3.12 or newer.
-- An OpenAI API key with available API credit.
-
-Install the dependency:
-
-```bash
-python -m pip install -r requirements.txt
-```
-
-Set the API key as an environment variable. Do not place it in the repository.
-
-Windows PowerShell:
+## Running all tests
 
 ```powershell
-$env:OPENAI_API_KEY="your-key-here"
-python demo.py
+.\.venv\Scripts\python.exe -m unittest -v
 ```
 
-Linux or macOS:
+The suite covers the calculator, timezone and ordering validation, the retained
+OpenAI adapter, MCP tool registration, structured results, and delegation to
+the deterministic calculator.
 
-```bash
-export OPENAI_API_KEY="your-key-here"
-python demo.py
-```
+## Design
 
-The demonstration reports whether GPT-5.6 called the elapsed-time tool before printing its natural response.
+Codex selects the relevant timestamps. The MCP wrapper contains no time logic;
+`time_calculator.calculate_elapsed_time` remains the single source of truth.
+This keeps the behavior deterministic and the integration easy to understand.
 
-## Product decisions
-
-James Lennox originated the problem and made the central design decisions:
-
-- Keep the tool simple and deterministic.
-- Let the LLM identify the relevant conversation message.
-- Calculate elapsed time rather than replacing AI memory.
-- Preserve natural conversational behaviour.
-- Use direct OpenAI function calling to reduce complexity and cost.
-
-See `DECISIONS.md` for the full decision record.
-
-## Codex collaboration
-
-Codex helped translate the product decisions into an implementation plan, generated the initial Python implementation, created automated tests, checked the code, and assisted with documentation.
-
-The implementation was developed during OpenAI Build Week using Codex. The required Codex feedback session identifier will be added before submission.
-
-## Current limitations
-
-- The host application must provide trustworthy message timestamps.
-- Timestamps must include a UTC offset or end in `Z`.
-- The prototype assumes relevant conversation history is already available to the model.
-- The included demonstration uses one fixed scenario.
-- The tool calculates elapsed duration but leaves interpretation and wording to the LLM.
+The host must provide trustworthy timestamps and relevant conversation context.
+Interpretation and conversational wording remain the model's responsibility.
 
 ## Licence
 

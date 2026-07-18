@@ -36,3 +36,15 @@ Codex helped translate these product decisions into a technical plan and will as
 Use direct OpenAI function calling instead of building a separate MCP server.
 
 This keeps the prototype small, reduces dependencies and development time, minimizes API usage, and directly demonstrates GPT-5.6 deciding when to call the elapsed-time calculator.
+
+## July 17, 2026 — Integration pivot
+
+**Decision maker:** James Lennox
+
+Pivot the primary integration from direct OpenAI Responses API calls to a local
+Codex MCP server.
+
+Build Week provides Codex access but no OpenAI API credits. A local stdio MCP
+server lets Codex use the same deterministic elapsed-time calculator without
+paid API calls. The earlier OpenAI dependency and prototype remain temporarily
+for compatibility and reference; MCP is now the primary integration.

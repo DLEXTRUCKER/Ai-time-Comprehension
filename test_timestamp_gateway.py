@@ -151,6 +151,52 @@ class ConversationLogTests(unittest.TestCase):
             log.record("user", "Hello")
         self.assertFalse(self.path.exists())
 
+    def test_rejects_clock_moving_backward_without_appending(self) -> None:
+        log = ConversationLog(
+            self.path,
+            clock=SequenceClock(
+                datetime(2026, 7, 18, 14, 1, tzinfo=timezone.utc),
+                datetime(2026, 7, 18, 14, 0, tzinfo=timezone.utc),
+            ),
+        )
+        log.record("user", "First")
+
+        with self.assertRaisesRegex(ValueError, "clock moved backward"):
+            log.record("assistant", "Must not be stored")
+
+        self.assertEqual(
+            [(message.role, message.content) for message in log.load()],
+            [("user", "First")],
+        )
+
+    def test_allows_equal_clock_values(self) -> None:
+        instant = datetime(2026, 7, 18, 14, 0, tzinfo=timezone.utc)
+        log = ConversationLog(
+            self.path,
+            clock=SequenceClock(instant, instant),
+        )
+
+        first = log.record("user", "First")
+        second = log.record("assistant", "Second")
+
+        self.assertEqual(first.timestamp, second.timestamp)
+        self.assertEqual(len(log.load()), 2)
+
+    def test_allows_forward_clock_values(self) -> None:
+        log = ConversationLog(
+            self.path,
+            clock=SequenceClock(
+                datetime(2026, 7, 18, 14, 0, tzinfo=timezone.utc),
+                datetime(2026, 7, 18, 14, 1, tzinfo=timezone.utc),
+            ),
+        )
+
+        first = log.record("user", "First")
+        second = log.record("assistant", "Second")
+
+        self.assertLess(first.timestamp, second.timestamp)
+        self.assertEqual(len(log.load()), 2)
+
     def test_rejects_malformed_loaded_record(self) -> None:
         self.path.write_text(
             '{"role":"user","content":"Missing timestamp"}\n',

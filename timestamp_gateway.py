@@ -21,6 +21,10 @@ def _format_timestamp(value: datetime) -> str:
     return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def _parse_utc_timestamp(value: str) -> datetime:
+    return datetime.fromisoformat(value[:-1] + "+00:00")
+
+
 @dataclass(frozen=True)
 class ConversationMessage:
     role: str
@@ -50,7 +54,7 @@ class ConversationMessage:
             raise ValueError("Timestamp must be a UTC ISO 8601 string ending in Z.")
 
         try:
-            parsed = datetime.fromisoformat(timestamp[:-1] + "+00:00")
+            parsed = _parse_utc_timestamp(timestamp)
         except ValueError as error:
             raise ValueError("Timestamp must be valid ISO 8601.") from error
         if parsed.tzinfo is None or parsed.utcoffset() is None:
@@ -72,10 +76,22 @@ class ConversationLog:
         if not isinstance(content, str):
             raise ValueError("Message content must be a string.")
 
+        timestamp = _format_timestamp(self.clock())
+        existing_messages = self.load()
+        if (
+            existing_messages
+            and _parse_utc_timestamp(timestamp)
+            < _parse_utc_timestamp(existing_messages[-1].timestamp)
+        ):
+            raise ValueError(
+                "The clock moved backward; refusing to append "
+                "a false conversation chronology."
+            )
+
         message = ConversationMessage(
             role=role,
             content=content,
-            timestamp=_format_timestamp(self.clock()),
+            timestamp=timestamp,
         )
         self.path.parent.mkdir(parents=True, exist_ok=True)
         with self.path.open("a", encoding="utf-8") as log_file:

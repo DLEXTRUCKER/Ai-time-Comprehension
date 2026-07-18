@@ -2,7 +2,7 @@ import json
 import subprocess
 import tempfile
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -143,7 +143,7 @@ class ChatGatewayTests(unittest.TestCase):
         self.assertEqual(thread_params["model"], MODEL)
         self.assertEqual(thread_params["approvalPolicy"], "untrusted")
         self.assertEqual(thread_params["sandbox"], "read-only")
-        self.assertEqual(thread_params["dynamicTools"], [])
+        self.assertNotIn("dynamicTools", thread_params)
         self.assertIs(thread_params["ephemeral"], True)
         self.assertEqual(
             thread_params["cwd"],
@@ -162,6 +162,8 @@ class ChatGatewayTests(unittest.TestCase):
             thread_params["developerInstructions"],
         )
         self.assertNotIn("config", thread_params)
+        self.assertNotIn("capabilities", transport.sent[0]["params"])
+        self.assertNotIn("experimentalApi", transport.sent[0]["params"])
         self.assertEqual(transport.sent[3]["method"], "turn/start")
         self.assertEqual(
             transport.sent[3]["params"]["threadId"],
@@ -491,6 +493,16 @@ class ChatGatewayTests(unittest.TestCase):
         process.terminate.assert_called_once_with()
         process.kill.assert_called_once_with()
         self.assertEqual(process.wait.call_count, 3)
+
+    def test_help_exits_without_starting_app_server(self) -> None:
+        with patch("chat_gateway.AppServerProcess") as app_server:
+            with self.assertRaises(SystemExit) as exit_context:
+                from chat_gateway import run_cli
+
+                run_cli(["--help"])
+
+        self.assertEqual(exit_context.exception.code, 0)
+        app_server.assert_not_called()
 
     @staticmethod
     def parse_context(context: str) -> list[dict[str, str]]:

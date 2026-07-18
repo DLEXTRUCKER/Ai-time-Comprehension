@@ -1,5 +1,6 @@
 """Interactive timestamped conversation gateway for Codex app-server 0.144.5."""
 
+import argparse
 import json
 import subprocess
 from collections import deque
@@ -149,15 +150,14 @@ class CodexConversationGateway:
 
         # Codex app-server 0.144.5 still exposes built-in capabilities. This
         # trusted-local prototype is not a hostile multi-user security boundary.
-        # Read-only sandboxing, empty dynamic tools, denials, and instructions
-        # reduce accidental use but do not technically remove built-in tools.
+        # Read-only sandboxing, denials, and instructions reduce accidental use
+        # but do not technically remove built-in tools.
         thread_result = self._request(
             "thread/start",
             {
                 "approvalPolicy": "untrusted",
                 "cwd": self.cwd,
                 "developerInstructions": DEVELOPER_INSTRUCTIONS,
-                "dynamicTools": [],
                 "ephemeral": True,
                 "model": MODEL,
                 "sandbox": "read-only",
@@ -332,7 +332,12 @@ class CodexConversationGateway:
         return str(error)
 
 
-def run_cli() -> None:
+def run_cli(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(
+        description="Start a timestamped conversation through Codex app-server."
+    )
+    parser.parse_args(argv)
+
     log = ConversationLog(Path("conversation.jsonl"))
     gateway = CodexConversationGateway(log, AppServerProcess())
     try:
